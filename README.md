@@ -1,5 +1,7 @@
 # Claude Code Dynamic Workflows 深度调研报告
 
+> **📖 在线阅读：** <https://cc-dynamic-workflows-report.vercel.app/>
+
 > **发布日期：** 2026-05-28 · **状态：** Research Preview
 > **可用平台：** Claude Code CLI / Desktop / VS Code 扩展 · Max / Team / Enterprise（需管理员启用）计划 · API (Amazon Bedrock / Vertex AI / Microsoft Foundry)
 
