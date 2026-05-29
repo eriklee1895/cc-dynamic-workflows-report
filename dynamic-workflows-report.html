@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Claude Code Dynamic Workflows · 深度指南</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Hanken+Grotesk:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&family=Noto+Sans+SC:wght@400;500;700&family=Noto+Serif+SC:wght@500;600;700&display=swap" rel="stylesheet" />
+<style>
+:root{
+  --ink:#080a0f;
+  --ink-2:#0c0f16;
+  --surface:#11151e;
+  --surface-2:#161b26;
+  --surface-3:#1c2330;
+  --border:rgba(255,255,255,.075);
+  --border-strong:rgba(255,255,255,.15);
+  --text:#ece8df;
+  --text-dim:#9aa2b1;
+  --text-faint:#646d7e;
+  --flow:#34e4c4;        /* Dynamic Workflows · code-in-the-loop */
+  --flow-deep:#0f9d86;
+  --flow-soft:rgba(52,228,196,.10);
+  --flow-line:rgba(52,228,196,.34);
+  --team:#ff9b54;        /* Agent Teams · human-in-the-loop */
+  --team-deep:#d9762f;
+  --team-soft:rgba(255,155,84,.10);
+  --team-line:rgba(255,155,84,.34);
+  --gold:#f5cf66;
+  --serif:"Fraunces","Noto Serif SC",Georgia,serif;
+  --sans:"Hanken Grotesk","Noto Sans SC",system-ui,sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,monospace;
+  --maxw:1180px;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html{scroll-behavior:smooth;-webkit-text-size-adjust:100%;}
+body{
+  font-family:var(--sans);
+  background:var(--ink);
+  color:var(--text);
+  line-height:1.72;
+  font-weight:400;
+  letter-spacing:.005em;
+  overflow-x:hidden;
+  position:relative;
+  font-feature-settings:"liga" 1,"calt" 1;
+}
+/* ---- atmosphere ---- */
+body::before{ /* blueprint grid */
+  content:"";position:fixed;inset:0;z-index:0;pointer-events:none;
+  background-image:
+    linear-gradient(rgba(255,255,255,.021) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(255,255,255,.021) 1px,transparent 1px);
+  background-size:62px 62px;
+  -webkit-mask-image:radial-gradient(130% 90% at 50% 0%,#000 35%,transparent 92%);
+          mask-image:radial-gradient(130% 90% at 50% 0%,#000 35%,transparent 92%);
+}
+body::after{ /* grain */
+  content:"";position:fixed;inset:0;z-index:0;pointer-events:none;opacity:.04;
+  mix-blend-mode:overlay;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+.glow{position:fixed;inset:0;z-index:0;pointer-events:none;
+  background:
+    radial-gradient(58% 42% at 12% 4%,rgba(52,228,196,.16),transparent 60%),
+    radial-gradient(50% 40% at 92% 22%,rgba(255,155,84,.12),transparent 60%),
+    radial-gradient(60% 50% at 50% 108%,rgba(52,228,196,.07),transparent 60%);
+}
+/* ---- scroll progress ---- */
+.progress{position:fixed;top:0;left:0;height:2px;width:0;z-index:90;
+  background:linear-gradient(90deg,var(--team),var(--gold) 40%,var(--flow));
+  box-shadow:0 0 14px rgba(52,228,196,.6);transition:width .08s linear;}
+/* ---- layout ---- */
+.shell{max-width:var(--maxw);margin:0 auto;padding:0 26px;position:relative;z-index:2;}
+.layout{display:block;}
+@media(min-width:1080px){
+  .layout{display:grid;grid-template-columns:206px minmax(0,1fr);gap:60px;align-items:start;}
+}
+/* ---- TOC ---- */
+.toc{display:none;}
+@media(min-width:1080px){
+  .toc{display:block;position:sticky;top:34px;padding-top:8px;}
+  .toc-label{font-family:var(--mono);font-size:10.5px;letter-spacing:.24em;
+    color:var(--text-faint);text-transform:uppercase;margin-bottom:18px;padding-left:14px;}
+  .toc a{display:flex;gap:10px;align-items:baseline;text-decoration:none;color:var(--text-faint);
+    font-size:13.5px;padding:7px 0 7px 14px;border-left:1.5px solid var(--border);
+    transition:color .25s,border-color .25s;line-height:1.4;}
+  .toc a .tn{font-family:var(--mono);font-size:10.5px;opacity:.7;min-width:18px;}
+  .toc a:hover{color:var(--text-dim);}
+  .toc a.active{color:var(--flow);border-left-color:var(--flow);}
+  .toc a.active .tn{opacity:1;}
+}
+/* ---- HERO ---- */
+.hero{padding:84px 0 60px;position:relative;z-index:2;}
+.eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.28em;text-transform:uppercase;
+  color:var(--flow);display:flex;align-items:center;gap:12px;}
+.eyebrow::before{content:"";width:28px;height:1px;background:var(--flow);display:inline-block;}
+.hero-grid{display:grid;grid-template-columns:1fr;gap:40px;margin-top:30px;}
+@media(min-width:900px){.hero-grid{grid-template-columns:1.35fr .9fr;align-items:center;gap:48px;}}
+.hero h1{font-family:var(--serif);font-weight:600;
+  font-size:clamp(2.3rem,5.2vw,4rem);line-height:1.22;letter-spacing:-.01em;
+  margin:22px 0 0;color:#fff;}
+.hero h1 .hl{color:var(--flow);font-weight:700;}
+.hero .sub{margin-top:24px;font-size:clamp(1rem,1.6vw,1.2rem);color:var(--text-dim);max-width:44ch;line-height:1.66;}
+.meta-row{display:flex;flex-wrap:wrap;gap:10px;margin-top:30px;}
+.chip{font-family:var(--mono);font-size:11.5px;letter-spacing:.04em;padding:6px 13px;border-radius:100px;
+  border:1px solid var(--border-strong);color:var(--text-dim);background:rgba(255,255,255,.022);
+  display:inline-flex;align-items:center;gap:7px;}
+.chip.preview{border-color:var(--team-line);color:var(--team);background:var(--team-soft);}
+.chip.made{border-color:var(--flow-line);color:var(--flow);background:var(--flow-soft);}
+.chip .dot{width:6px;height:6px;border-radius:50%;background:currentColor;box-shadow:0 0 8px currentColor;}
+/* hero fan-out svg */
+.hero-vis{position:relative;min-height:300px;display:flex;align-items:center;justify-content:center;}
+.hero-vis svg{width:100%;max-width:420px;height:auto;overflow:visible;}
+.node{fill:var(--ink-2);stroke-width:1.6;}
+.node.src{stroke:var(--gold);fill:rgba(245,207,102,.08);}
+.node.agent{stroke:var(--flow-line);}
+.node.agent.warm{stroke:var(--team-line);}
+.ncore{fill:var(--gold);}
+.ncore.f{fill:var(--flow);}
+.ncore.w{fill:var(--team);}
+.flowline{fill:none;stroke-width:1.4;stroke-linecap:round;}
+.flowline.f{stroke:var(--flow-line);}
+.flowline.w{stroke:var(--team-line);}
+.dash{stroke-dasharray:5 9;animation:dashmove 1.4s linear infinite;}
+@keyframes dashmove{to{stroke-dashoffset:-28;}}
+.pulse{animation:pulse 2.6s ease-in-out infinite;}
+@keyframes pulse{0%,100%{opacity:.5;}50%{opacity:1;}}
+/* ---- generic block ---- */
+.block{padding:52px 0;border-top:1px solid var(--border);scroll-margin-top:24px;}
+.block:first-of-type{border-top:none;}
+.knum{font-family:var(--mono);font-size:12px;letter-spacing:.2em;color:var(--flow);display:block;margin-bottom:10px;}
+.block > h2{font-family:var(--serif);font-weight:600;font-size:clamp(1.55rem,3.2vw,2.35rem);
+  line-height:1.3;letter-spacing:-.005em;color:#fff;margin-bottom:26px;}
+/* ---- TL;DR ---- */
+.tldr{position:relative;z-index:2;margin:8px 0 4px;
+  background:linear-gradient(180deg,var(--surface),var(--ink-2));
+  border:1px solid var(--border);border-radius:18px;padding:38px 34px;
+  box-shadow:0 30px 70px -40px rgba(0,0,0,.9);}
+.tldr-head{display:flex;align-items:baseline;gap:14px;margin-bottom:26px;}
+.tldr-head h2{font-family:var(--serif);font-size:1.7rem;font-weight:600;color:#fff;}
+.tldr-head span{font-family:var(--mono);font-size:11px;letter-spacing:.22em;color:var(--text-faint);text-transform:uppercase;}
+.tldr-item{display:grid;grid-template-columns:34px 1fr;gap:16px;padding:15px 0;border-top:1px dashed var(--border);align-items:start;}
+.tldr-item:first-child{border-top:none;}
+.tldr-item .ti-n{font-family:var(--mono);font-size:13px;color:var(--flow);padding-top:3px;}
+.tldr-item p{font-size:15.2px;color:var(--text);line-height:1.68;}
+/* ---- prose ---- */
+.prose{font-size:16px;color:#dcd9d0;max-width:72ch;}
+.prose h3{font-family:var(--sans);font-weight:700;font-size:1.12rem;color:#fff;margin:34px 0 12px;letter-spacing:.005em;}
+.prose h3:first-child{margin-top:0;}
+.prose p{margin:14px 0;}
+.prose strong{color:#fff;font-weight:700;}
+.prose em{color:var(--gold);font-style:normal;font-weight:600;}
+.prose a{color:var(--flow);text-decoration:underline;text-underline-offset:3px;text-decoration-color:var(--flow-line);}
+.prose ul,.prose ol{margin:14px 0;padding-left:4px;list-style:none;}
+.prose li{position:relative;padding-left:24px;margin:9px 0;}
+.prose ul li::before{content:"";position:absolute;left:4px;top:11px;width:7px;height:7px;
+  border:1.5px solid var(--flow);border-radius:1px;transform:rotate(45deg);}
+.prose ol{counter-reset:li;}
+.prose ol li{counter-increment:li;}
+.prose ol li::before{content:counter(li);position:absolute;left:0;top:1px;font-family:var(--mono);
+  font-size:11px;color:var(--flow);border:1px solid var(--flow-line);border-radius:50%;
+  width:18px;height:18px;display:flex;align-items:center;justify-content:center;}
+.prose code{font-family:var(--mono);font-size:.86em;background:var(--flow-soft);color:var(--flow);
+  border:1px solid var(--flow-line);padding:1px 7px;border-radius:6px;white-space:nowrap;}
+.prose blockquote{margin:22px 0;padding:20px 24px;background:var(--surface);border-radius:0 12px 12px 0;
+  border-left:3px solid var(--flow);position:relative;color:#e6e3da;font-size:15px;line-height:1.66;}
+.prose blockquote::before{content:"\201C";position:absolute;top:2px;left:12px;font-family:var(--serif);
+  font-size:46px;color:var(--flow-line);line-height:1;pointer-events:none;}
+.prose blockquote p{margin:6px 0 6px 22px;}
+.prose blockquote strong{color:#fff;}
+/* tables inside prose + standalone */
+.prose table,.cmp table{width:100%;border-collapse:separate;border-spacing:0;margin:24px 0;font-size:14px;
+  border:1px solid var(--border);border-radius:12px;overflow:hidden;}
+.prose th,.prose td{padding:12px 15px;text-align:left;border-bottom:1px solid var(--border);vertical-align:top;line-height:1.5;}
+.prose thead th{background:var(--surface-2);color:#fff;font-weight:700;font-size:12.5px;letter-spacing:.02em;}
+.prose tbody tr:last-child td{border-bottom:none;}
+.prose tbody tr:nth-child(even){background:rgba(255,255,255,.012);}
+.prose hr{border:none;border-top:1px solid var(--border);margin:28px 0;}
+/* ---- callout ---- */
+.callout{margin-top:26px;display:grid;grid-template-columns:auto 1fr;gap:16px;
+  background:linear-gradient(180deg,var(--surface-2),var(--surface));
+  border:1px solid var(--border);border-left:3px solid var(--gold);border-radius:0 14px 14px 0;
+  padding:20px 24px;font-size:14.5px;color:var(--text-dim);line-height:1.66;max-width:74ch;}
+.callout .ico{width:26px;height:26px;flex:none;}
+.callout strong{color:var(--gold);font-weight:700;}
+.callout .lab{font-family:var(--mono);font-size:10px;letter-spacing:.2em;color:var(--gold);
+  text-transform:uppercase;display:block;margin-bottom:5px;}
+/* ---- verdict banner ---- */
+.vbanner{margin:0 0 28px;padding:22px 26px;border-radius:14px;position:relative;overflow:hidden;
+  background:linear-gradient(135deg,rgba(52,228,196,.12),rgba(245,207,102,.05));
+  border:1px solid var(--flow-line);box-shadow:0 20px 50px -38px rgba(52,228,196,.6);}
+.vbanner .vlab{font-family:var(--mono);font-size:10.5px;letter-spacing:.2em;text-transform:uppercase;
+  color:var(--flow);display:block;margin-bottom:9px;}
+.vbanner p{font-size:15px;color:#eef0ec;line-height:1.74;}
+.vbanner strong{color:#fff;}
+.vbanner code{font-family:var(--mono);font-size:.85em;color:var(--flow);background:rgba(0,0,0,.25);padding:1px 6px;border-radius:5px;}
+/* ---- spectrum (signature) ---- */
+.spectrum{margin:6px 0 30px;background:var(--ink-2);border:1px solid var(--border);border-radius:18px;
+  padding:30px 30px 34px;overflow:hidden;position:relative;}
+.spectrum-q{text-align:center;font-family:var(--mono);font-size:12px;letter-spacing:.18em;
+  color:var(--text-dim);text-transform:uppercase;margin-bottom:22px;}
+.spectrum-q b{color:#fff;}
+.spec-bar{height:8px;border-radius:100px;margin:0 6px 8px;
+  background:linear-gradient(90deg,var(--team) 0%,var(--team-deep) 22%,#6b6f76 50%,var(--flow-deep) 78%,var(--flow) 100%);
+  box-shadow:0 0 24px -4px rgba(52,228,196,.5),0 0 24px -4px rgba(255,155,84,.5) inset;}
+.spec-ticks{display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;
+  letter-spacing:.16em;color:var(--text-faint);margin:0 6px 24px;text-transform:uppercase;}
+.poles{display:grid;grid-template-columns:1fr;gap:16px;}
+@media(min-width:680px){.poles{grid-template-columns:1fr 1fr;}}
+.pole{border-radius:14px;padding:22px 22px;border:1px solid var(--border);position:relative;overflow:hidden;}
+.pole.team{background:var(--team-soft);border-color:var(--team-line);}
+.pole.flow{background:var(--flow-soft);border-color:var(--flow-line);}
+.pole .ptag{font-family:var(--mono);font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;display:inline-block;margin-bottom:9px;}
+.pole.team .ptag{color:var(--team);}
+.pole.flow .ptag{color:var(--flow);}
+.pole h4{font-family:var(--serif);font-size:1.35rem;font-weight:600;color:#fff;margin-bottom:8px;}
+.pole p{font-size:13.5px;color:var(--text-dim);line-height:1.6;}
+.pole .glyph{position:absolute;right:-14px;top:-14px;font-size:90px;opacity:.07;font-family:var(--serif);line-height:1;}
+/* ---- comparison ---- */
+.cmp{overflow-x:auto;border-radius:14px;border:1px solid var(--border);-webkit-overflow-scrolling:touch;}
+.cmp table{margin:0;border:none;border-radius:0;min-width:760px;font-size:13.3px;}
+.cmp th,.cmp td{padding:14px 16px;border-bottom:1px solid var(--border);text-align:left;vertical-align:top;line-height:1.52;}
+.cmp thead th{background:var(--surface-2);color:var(--text-dim);font-weight:700;font-size:12px;
+  letter-spacing:.02em;position:sticky;top:0;white-space:nowrap;}
+.cmp thead th.col-flow{color:var(--flow);background:rgba(52,228,196,.07);}
+.cmp thead th.col-team{color:var(--team);background:rgba(255,155,84,.06);}
+.cmp tbody td:first-child{color:#fff;font-weight:600;font-family:var(--sans);width:150px;background:var(--surface);
+  position:sticky;left:0;border-right:1px solid var(--border);}
+.cmp td.col-flow{background:rgba(52,228,196,.045);color:#e6f7f3;}
+.cmp td.col-team{background:rgba(255,155,84,.035);}
+.cmp tbody tr:last-child td{border-bottom:none;}
+.cmp tbody tr:hover td{background:rgba(255,255,255,.02);}
+.cmp tbody tr:hover td.col-flow{background:rgba(52,228,196,.08);}
+.cmp tbody tr:hover td.col-team{background:rgba(255,155,84,.07);}
+.cmp-title{font-family:var(--mono);font-size:11.5px;color:var(--text-dim);margin:0 0 12px;line-height:1.5;}
+.cmp-hint{font-family:var(--mono);font-size:11px;color:var(--text-faint);margin-top:12px;}
+/* ---- decision cards ---- */
+.dgrid{display:grid;grid-template-columns:1fr;gap:14px;}
+@media(min-width:760px){.dgrid{grid-template-columns:1fr 1fr;}}
+.dcard{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px 22px;
+  font-size:14.3px;color:var(--text-dim);line-height:1.64;position:relative;
+  transition:transform .3s,border-color .3s;}
+.dcard:hover{transform:translateY(-3px);border-color:var(--border-strong);}
+.dcard b,.dcard strong{color:#fff;}
+.dcard .dnum{font-family:var(--mono);font-size:11px;color:var(--flow);letter-spacing:.1em;display:block;margin-bottom:9px;}
+.dcard.full{grid-column:1/-1;border-left:3px solid var(--gold);}
+.dcard.full .dnum{color:var(--gold);}
+/* ---- quickstart ---- */
+.steps{position:relative;}
+.step{display:grid;grid-template-columns:54px 1fr;gap:20px;padding:0 0 30px;position:relative;}
+.step::before{content:"";position:absolute;left:26px;top:46px;bottom:-2px;width:1.5px;
+  background:linear-gradient(180deg,var(--flow-line),transparent);}
+.step:last-child::before{display:none;}
+.step .sn{width:52px;height:52px;border-radius:14px;border:1px solid var(--flow-line);
+  background:var(--flow-soft);color:var(--flow);font-family:var(--mono);font-size:17px;font-weight:700;
+  display:flex;align-items:center;justify-content:center;flex:none;z-index:1;}
+.step h4{font-family:var(--sans);font-weight:700;font-size:1.06rem;color:#fff;margin:13px 0 6px;}
+.step .sd{font-size:14.3px;color:var(--text-dim);line-height:1.64;margin-bottom:12px;max-width:64ch;}
+.cmd{display:flex;align-items:center;gap:10px;background:var(--ink-2);border:1px solid var(--border-strong);
+  border-radius:10px;padding:11px 13px;font-family:var(--mono);font-size:13px;color:var(--flow);
+  max-width:100%;overflow:hidden;}
+.cmd .cprompt{color:var(--text-faint);user-select:none;}
+.cmd .ctext{overflow-x:auto;white-space:nowrap;flex:1;-webkit-overflow-scrolling:touch;}
+.cmd button{margin-left:auto;flex:none;background:transparent;border:1px solid var(--border-strong);
+  color:var(--text-dim);border-radius:7px;padding:5px 9px;font-family:var(--mono);font-size:10.5px;
+  letter-spacing:.06em;cursor:pointer;transition:.2s;display:inline-flex;align-items:center;gap:5px;}
+.cmd button:hover{color:var(--flow);border-color:var(--flow-line);background:var(--flow-soft);}
+.cmd button.done{color:var(--flow);border-color:var(--flow-line);}
+.cmd button svg{width:12px;height:12px;}
+.note{background:var(--surface);border:1px dashed var(--border-strong);border-radius:10px;
+  padding:10px 14px;font-size:12.8px;color:var(--text-faint);font-family:var(--mono);line-height:1.5;}
+/* ---- FAQ ---- */
+.faq details{border:1px solid var(--border);border-radius:12px;margin-bottom:12px;
+  background:var(--surface);overflow:hidden;transition:border-color .25s;}
+.faq details[open]{border-color:var(--flow-line);}
+.faq summary{list-style:none;cursor:pointer;padding:18px 22px;font-weight:600;color:#fff;font-size:15.5px;
+  display:flex;align-items:center;gap:14px;}
+.faq summary::-webkit-details-marker{display:none;}
+.faq summary .q{flex:1;}
+.faq summary .pm{flex:none;width:22px;height:22px;border:1px solid var(--flow-line);border-radius:50%;
+  position:relative;transition:.3s;color:var(--flow);}
+.faq summary .pm::before,.faq summary .pm::after{content:"";position:absolute;background:currentColor;
+  top:50%;left:50%;transform:translate(-50%,-50%);}
+.faq summary .pm::before{width:9px;height:1.5px;}
+.faq summary .pm::after{width:1.5px;height:9px;transition:.3s;}
+.faq details[open] summary .pm{transform:rotate(180deg);}
+.faq details[open] summary .pm::after{height:0;}
+.faq .ans{padding:0 22px 20px;color:var(--text-dim);font-size:14.5px;line-height:1.72;max-width:74ch;}
+.faq .ans code{font-family:var(--mono);font-size:.86em;background:var(--flow-soft);color:var(--flow);
+  border:1px solid var(--flow-line);padding:1px 6px;border-radius:5px;}
+/* ---- sources / footer ---- */
+.sources{display:grid;grid-template-columns:1fr;gap:10px;margin-top:6px;}
+@media(min-width:640px){.sources{grid-template-columns:1fr 1fr;}}
+.src{display:flex;align-items:center;gap:12px;text-decoration:none;padding:14px 18px;border-radius:11px;
+  border:1px solid var(--border);background:var(--surface);color:var(--text-dim);font-family:var(--mono);
+  font-size:12.5px;transition:.25s;word-break:break-all;}
+.src:hover{border-color:var(--flow-line);color:var(--flow);transform:translateX(3px);}
+.src svg{width:14px;height:14px;flex:none;opacity:.7;}
+.footer{border-top:1px solid var(--border);margin-top:60px;padding:40px 0 70px;color:var(--text-faint);
+  font-size:13px;text-align:center;line-height:1.8;}
+.footer .sig{font-family:var(--serif);font-style:italic;color:var(--text-dim);font-size:15px;}
+.footer code{font-family:var(--mono);color:var(--flow);font-size:12px;}
+/* ---- reveal ---- */
+.reveal{opacity:0;transform:translateY(22px);transition:opacity .7s cubic-bezier(.2,.7,.2,1),transform .7s cubic-bezier(.2,.7,.2,1);}
+.reveal.in{opacity:1;transform:none;}
+@media(prefers-reduced-motion:reduce){
+  *{animation:none!important;transition:none!important;}
+  .reveal{opacity:1;transform:none;}
+  html{scroll-behavior:auto;}
+}
+::selection{background:var(--flow);color:#04201a;}
+</style>
+</head>
+<body>
+<div class="glow"></div>
+<div class="progress" id="progress"></div>
+
+<script id="report-data" type="application/json">{"title": "Claude Code Dynamic Workflows 深度指南：把\"计划\"写进代码，规模化编排你的 Agent 大军", "subtitle": "研究预览版（research preview）下的脚本化编排原语 —— 它为什么强、和 Agent Teams 究竟冲不冲突、以及如何今天就用起来", "tldr": ["一句话本质：Dynamic Workflow 是一段由 Claude 为你的任务现写、再由 runtime 在后台执行的 JavaScript 脚本，用来规模化编排 subagents —— 脚本持有循环、分支和中间结果，Claude 的上下文里只留最终答案。", "核心威力来自 plan-in-code：把编排逻辑从 Claude 脑子里搬进代码，中间结果存进脚本变量而非上下文窗口，于是单次运行能协调几十到几百个 agent（最多 16 并发、单次 1000 个上限）。", "它不只是跑更多 agent，而是能套用可复用的质量模式：对抗式交叉验证（互相反驳加投票过滤）、多角度起草加评审打分（judge panel）、loop-until-dry 发现式抓取 —— 比单次直跑更可信。", "和 Agent Teams 不冲突，是互补：二者只是同一条谁持有计划光谱的两端。Agent Teams 是你和 lead 实时驾驶、可中途插话改方向；Dynamic Workflows 是脚本持有计划、后台一把梭跑完只给你一份最终报告。", "唯一区分轴就是文档那句话：谁来协调工作。要边跑边 steer 选 Agent Teams；要规模化、可复用、可交叉验证、且接受跑完再看选 Dynamic Workflows。", "开箱即用：内置 /deep-research 就是一个 workflow；prompt 里带 workflow 这个词即可触发单次 workflow（误触按 alt+w 取消）；/effort ultracode 让整个 session 自动为每个实质任务规划 workflow。", "成本与开关要心里有数：一次运行可能比对话直跑贵得多、计入用量与限流；可在 /config、settings.json 的 disableWorkflows、或环境变量 CLAUDE_CODE_DISABLE_WORKFLOWS=1 关闭。", "可恢复但有边界：同一 session 内停了能 resume（已完成 agent 走缓存）；但一旦退出 Claude Code，下个 session 会从头重跑。"], "sections": [{"id": "what-is-it", "heading": "一、它是什么：一句话本质", "body_markdown": "> **A dynamic workflow is a JavaScript script that orchestrates subagents at scale. Claude writes the script for the task you describe, and a runtime executes it in the background while your session stays responsive.**\n\n拆开这句官方定义，有四个不可拆的关键词：\n\n- **JavaScript 脚本（script）**：编排逻辑是一段真实可读的代码，不是 Claude 在脑子里的临时规划。\n- **orchestrates subagents at scale**：它编排的对象是 subagents，规模是 at scale —— 几十到几百个。\n- **Claude writes the script**：你只描述任务，脚本由 Claude 现写；你可以读它、改它、存它、重跑它。\n- **a runtime executes it in the background**：执行的不是 Claude，而是一个独立的 workflow runtime，在后台跑，**你的会话全程保持响应**。\n\n用一句更直白的话总结这个原语的灵魂：\n\n> **A workflow moves the plan into code.**\n\n在 subagents 和 skills 里，Claude 是 orchestrator，它 turn by turn 决定下一步 spawn 什么，而且每个结果都落进 Claude 的上下文。而 workflow 把这个计划整体搬进了脚本 —— **脚本自己持有 loop、branching 和 intermediate results，所以 Claude 的上下文里只剩最终答案。**\n\n**身份说明（很重要）**：Dynamic Workflows 目前是 **research preview（研究预览）**。需要 **Claude Code v2.1.154 或更高版本**，覆盖所有付费计划（Pro / Max / Team / Enterprise），可经 Anthropic API 使用，也支持 Amazon Bedrock、Google Cloud Vertex AI 和 Microsoft Foundry。**Pro 用户需在 `/config` 的 Dynamic workflows 行手动打开。**", "callout": "记住这个判别口诀贯穿全文：subagents / skills 里 Claude 持有计划（逐回合决策，结果落上下文）；workflow 里脚本持有计划（循环/分支/中间结果都在代码里，上下文只留最终答案）。这一条决定了它后面所有的能力与限制。"}, {"id": "how-it-runs", "heading": "二、它怎么运行：脚本 + runtime + 后台执行 + 可恢复 + 并发上限", "body_markdown": "### 1. 隔离环境，中间结果不落上下文\n\n> The workflow runtime executes the script in an isolated environment, separate from your conversation. Intermediate results stay in script variables instead of landing in Claude's context.\n\n这是它和 subagents 最根本的运行差异：subagents 的结果回到主对话（return only the summary，但 summary 仍占上下文），而 workflow 的**所有中间结果都待在脚本变量里**，在一个与你对话隔离的环境中。\n\n### 2. 后台执行，会话保持响应\n\nruntime 在后台跑脚本，你不会看到逐回合的 transcript，而是**最后拿到一份报告**。运行期间用 `/workflows` 观察进度 —— 每个 phase 的 agent 数、token 总量、已用时间。\n\n### 3. 可恢复（resumable）—— 但只限同一 session\n\n> The runtime tracks each agent's result as the run progresses, which is what makes a run resumable within the same session.\n\n- 停止一次运行后可以 **resume**：**已完成的 agent 返回缓存结果，其余的实时重跑**。\n- 中断行为对比：subagent / skill 被打断会**重启整个回合（restarts the turn）**；workflow 是**在同一 session 内可恢复**。\n- **边界（务必牢记）**：`Resume works within the same Claude Code session. If you exit Claude Code while a workflow is running, the next session starts the workflow fresh.` —— 退出 Claude Code，下个 session 从头重跑。\n\n### 4. 并发与总量上限（保护本地资源、防失控）\n\n| 约束 | 原因 |\n| :-- | :-- |\n| 最多 **16** 个并发 agent（CPU 核少的机器更少） | Bounds local resource use（限制本地资源占用） |\n| 单次运行总计 **1,000** 个 agent | Prevents runaway loops（防止失控循环） |\n| **无中途用户输入**（No mid-run user input） | 只有 agent 权限提示能暂停运行；要分阶段签字（sign-off），就把每个阶段做成独立 workflow |\n| 脚本本身**无直接文件系统/Shell 访问** | Agents 负责读、写、跑命令；脚本只负责协调它们 |\n\n### 5. 它运行在哪些 surface\n\nCLI、Desktop app、IDE 扩展、非交互模式（`claude -p`）、以及 Agent SDK 都支持。其中在 `claude -p` 和 Agent SDK 下，**运行立即开始、无交互确认**（因为没人可以提示）。", "callout": "无中途用户输入不等于不可控。你随时可以从 /workflows 暂停（p）/恢复（p）/停止（x），agent 的权限提示也能暂停运行。你不能做的只有一件事：中途注入自然语言新指令或做阶段签字。需要人工关卡时，官方建议把每个阶段拆成独立 workflow。"}, {"id": "why-cool", "heading": "三、为什么这么酷：不只是跑更多 agent，而是把质量模式写进代码", "body_markdown": "workflow 真正的杀手锏，是 plan-in-code 带来的一组**可复用的质量模式（repeatable quality pattern）**：\n\n> Moving the plan into code also lets a workflow apply a repeatable quality pattern, **not just run more agents**: it can have independent agents adversarially review each other's findings before they're reported, or draft a plan from several angles and weigh them against each other, **so you get a more trustworthy result than a single pass.**\n\n### 1. 上下文卸载，换来规模与干净\n\n因为中间结果待在脚本变量、不污染上下文窗口，单次运行才能协调**几十到几百个 agent** —— 远超一次对话能容纳的量。这是规模的物理来源。\n\n### 2. 可复用的是编排本身\n\n这是与其它原语的**质变**差异：\n\n- subagents 可复用的是 **worker 定义**；\n- skills 可复用的是 **instructions**；\n- workflow 可复用的是 **the orchestration itself** —— 你把一次运行的脚本存成 `/command`，重跑就是**逐字复现同一套编排**（比如在每条分支上跑同一套 review）。\n\n### 3. 三种质量模式 + 一种调度选择\n\n| 质量模式 | 它做什么 | 为什么胜过单次直跑 |\n| :-- | :-- | :-- |\n| **对抗式验证（Adversarial verification）** | 独立 agent 互相反驳彼此的发现、对每条 claim 投票、过滤掉没通过交叉核验的 claim | 单次直跑没有第二个 agent 抓错；只有经独立审视存活的 claim 才会上报 |\n| **多角度起草 + 评审（Multi-angle drafting + judge）** | 从若干独立角度起草方案，打分/权衡，综合出胜出版本 | 规避单一思维链的盲区；挑的是最强方案而非第一个方案 |\n| **Loop-until-dry 发现式抓取** | 脚本持有循环，持续 fan-out/收集，直到某阶段不再发现新材料 | 由代码驱动发现，而非 Claude 逐回合猜何时停 |\n| **Pipeline vs Parallel 调度** | 并行有 barrier，每阶段等齐所有 agent；流水线无 barrier，单项直接流向下一阶段 | 脚本按阶段选调度：墙钟时间可降到最慢单项链而非全批最慢 agent |\n\n`/deep-research` 就是模式 1 的活样本：`votes on each claim` 并返回一份 `with claims that didn't survive cross-checking filtered out` 的带引用报告。\n\n### 用大白话总结为什么更可信\n\n单次对话直跑 = 一条推理链、没有独立检查，而且草稿挤占上下文。workflow = 把计划外化让模型保持干净，再把工作 fan-out 给众多独立 agent，再让这些 agent 互相核验（投票、反驳、评判），存活的 claim 才到你手里，胜出草稿被综合，整套编排被保存，下次同样的把关再跑一遍。", "callout": "Pipeline 与 barrier 这两个术语是概念框架（文档未逐字使用），但文档明确描述了 deep-research 那种 fan out / cross-check / synthesize 的分阶段 barriered 模式，以及从多角度起草并互相权衡。因为脚本持有循环和分支，流水线调度才成为可能 —— 这是一条推断，不是逐字声明。"}, {"id": "vs-agent-teams", "heading": "四、和 Agent Teams 到底冲不冲突：不冲突，是互补", "body_markdown": "**结论先行：不冲突。它们只是表面相似（都在编排很多 agent），实则坐在同一条设计光谱的两端，为相反的需求而优化。**\n\n官方 Run agents in parallel 总览页把它们并列为四种不同方法，并告诉你只凭一个问题选择：\n\n> **Who coordinates the work?（谁来协调工作？）**\n\n- **Agent Teams** = `Claude plans, assigns, and supervises a group of workers` —— 一个**可人类驾驶的 lead** 逐回合持有计划。\n- **Dynamic Workflows** = `A script holds the plan instead of Claude's turn-by-turn judgment` —— 计划被外化进 JavaScript 脚本，后台跑完、无中途输入。\n\n这一句话就是全部答案。**真正的差异轴是 HUMAN-IN-THE-LOOP（人在环）vs CODE-IN-THE-LOOP（代码在环）。**\n\n### 六条具体差异（指向相反方向）\n\n1. **谁持有计划**：Agent Teams 是 lead（一个 Claude session）逐回合持有；Dynamic Workflows 是脚本（代码）持有。\n2. **交互性（最锋利的实操差异）**：\n   - Agent Teams `fully interactive and steerable` —— `Each teammate is a full, independent Claude Code session. You can message any teammate directly`，文档主动建议你 `Monitor and steer`。\n   - Dynamic Workflows 相反：`No mid-run user input — Only agent permission prompts can pause a run.` 一个是边跑边 steer，一个是点火后读最终报告。\n3. **中间结果存哪**：Agent Teams = **共享 task list + 每个 teammate 自己的上下文 + mailbox**（状态分布、可中途查看/修改）；Workflows = **脚本变量**，`Claude's context holds only the final answer`。\n4. **规模**：Agent Teams 推荐 **3-5 个 teammate**（每人约 5-6 个任务，小到人能监督）；Workflows 是**几十到几百**（16 并发、1000 总量），明确面向大到无法逐回合协调的工作。\n5. **可复用性**：Workflow 的编排可存成 `/command` 逐字重跑；Agent Team 是一次性的、人驱动的协作 episode，**没有可保存的编排产物**，每次都要重新描述。\n6. **可中断/恢复**：Workflows `resumable in the same session`（已完成 agent 走缓存）；Agent Teams 的 in-process teammate **无 session 恢复**（`/resume`、`/rewind` 都恢复不了），中断靠你实时 steer 处理。\n\n### 一个操作级 gotcha：文件冲突\n\nAgent Teams **不把 teammate 隔离进 worktree** —— `Two teammates editing the same file leads to overwrites.`，你必须**手动按文件分区**。Workflows 脚本本身无直接文件系统访问，由 spawn 出的 agent 做 I/O、脚本协调。\n\n### 它们能组合，不只是竞争\n\n因为 workflow 本质就是被编排的一组 subagents，而 team lead 逐回合协调，所以你可以**把一个 Dynamic Workflow 当作 team lead 的一个有界、无人值守子任务**（如一次交叉核验过的审计），再召集一个 Agent Team 交互式地基于其报告行动；或者把一个大工程的每个需要人工关卡的阶段各做成一个 workflow。", "callout": "一个常见混淆：agent view（claude agents）是与 Agent Teams 不同的功能。Agent view 是个研究预览界面，用来派发并监控只向你汇报的独立后台 session，而且会把每个派发出的 session 自动移进独立 worktree。Agent Team 内部你是用 Shift+Down 循环（in-process）或分屏（tmux/iTerm2）来看/steer teammate，且 teammate 不做 worktree 隔离。别把 agent view 的监控当成 team 内的 steering。"}, {"id": "vs-subagents-skills", "heading": "五、与 Subagents / Skills 的关系：差异在谁持有计划", "body_markdown": "三者共享同一个底层 substrate —— worker 都是 Claude session/subagent，所以它们看着像。但分叉点完全在于**谁来编排、以及你能否介入**。\n\n### Subagents（GA 已正式发布）\n\n> Subagents are specialized AI assistants … the subagent does that work in its own context and **returns only the summary**.\n\n- **本质**：`A worker Claude spawns`（Claude spawn 的一个 worker）。\n- **谁决定下一步**：Claude，逐回合。当任务匹配某 subagent 的 description 时，Claude 委派给它。\n- **中间结果**：工作在隔离上下文里做，但 **summary 落回主对话** —— 跑很多个会显著消耗上下文。\n- **可复用的**：worker 定义（带 YAML frontmatter 的 markdown 文件：name/description/tools/model/prompt）。\n- **关键限制**：`Subagents cannot spawn other subagents`（不能嵌套）。要嵌套委派就用 Skills 或从主对话链式调用。Token 成本最低，适合只关心结果的旁支任务。\n\n### Skills\n\n> Skills extend what Claude can do … Claude uses skills when relevant, or you can invoke one directly with /skill-name.\n\n- **本质**：`Instructions Claude follows`（Claude 遵循的指令）。\n- **谁决定下一步**：Claude，遵循 prompt。\n- **中间结果**：`the rendered SKILL.md content enters the conversation as a single message and stays there` —— 默认 inline 跑在主对话上下文里（除非用 `context: fork` 送进 subagent）。\n- **可复用的**：instructions（SKILL.md 正文）。\n- **规模/中断**：与 subagents 相同 —— 每回合几个委派；中断都是 restarts the turn。\n\n### 三者一句话对照（差异在谁持有计划）\n\n| | Subagents | Skills | Workflows |\n| :-- | :-- | :-- | :-- |\n| 本质 | Claude spawn 的 worker | Claude 遵循的指令 | runtime 执行的脚本 |\n| 谁决定下一步 | Claude，逐回合 | Claude，遵循 prompt | 脚本 |\n| 中间结果存哪 | Claude 上下文窗口 | Claude 上下文窗口 | 脚本变量 |\n| 可复用的是 | worker 定义 | instructions | 编排本身 |\n| 规模 | 每回合几个委派 | 同 subagents | 单次几十到几百 |\n| 中断 | 重启回合 | 重启回合 | 同 session 内可恢复 |", "callout": "还有一个进阶变体：Forked subagent（实验性，CLAUDE_CODE_FORK_SUBAGENT=1，v2.1.117+）。fork 继承到目前为止的整段对话（系统提示、工具、模型、消息历史全继承），而非从空白开始；它的工具调用不进你的对话，只返回最终结果。fork 不能再 spawn fork。"}, {"id": "cost-perm-toggle", "heading": "六、成本、权限与开关", "body_markdown": "### 成本现实\n\n> A workflow spawns many agents, so a single run can use meaningfully more tokens than working through the same task in conversation. Runs count toward your plan's usage and rate limits.\n\n- 单次运行可能比对话直跑**贵得多**，且**计入计划用量与限流**。\n- 可随时从 `/workflows` 停止，**不丢失已完成的工作**（resume 时已完成 agent 走缓存）。\n- **ultracode 是额外的成本放大器**：开着它，一个请求可能变成连续几个 workflow（理解→修改→验证），整个 session 每个任务都更贵更慢。\n\n### 模型\n\n- `Every agent in a workflow uses your session's model unless the script routes a stage to a different one.`\n- 控制成本两招：①大运行前先 `/model` 确认（如果你平时切小模型做日常）；②描述任务时让 Claude 给不需要最强模型的阶段用更小的模型。通用建议：Sonnet 胜任多数编码任务且比 Opus 便宜；复杂架构/多步推理才上 Opus；简单 subagent 任务可指定 `model: haiku`。\n\n### 权限（关键：session 模式只管启动提示）\n\n| Permission mode | 何时提示（仅指启动提示） |\n| :-- | :-- |\n| Default / accept edits | 每次运行都提示，除非你为该 workflow 在本项目选了 Yes, and don't ask again |\n| Auto | 仅首次启动提示；任何 Yes 会在用户设置里记录同意，之后启动不再提示；**ultracode 开启时整个跳过** |\n| Bypass permissions / `claude -p` / Agent SDK | 从不提示，运行立即开始 |\n\n> Your permission mode controls only the launch prompt. The subagents the workflow spawns **always run in `acceptEdits` mode** and inherit your tool allowlist, regardless of your session's mode. **File edits are auto-approved.**\n\n- **中途仍可能被提示**：不在 allowlist 里的 shell 命令、web fetch、MCP 工具，运行中仍会提示你。**长运行前把 agent 需要的命令加进 allowlist** 可避免。\n- **Headless**：`claude -p` 和 Agent SDK 下没人可提示，工具调用按你配置的权限规则走、无交互确认。\n\n### 关闭开关\n\n| 关闭方式 | 范围 | 备注 |\n| :-- | :-- | :-- |\n| `/config` 切换 Dynamic workflows 行 | 自己 | 跨 session 持久 |\n| `~/.claude/settings.json` 设 `\"disableWorkflows\": true` | 自己 | 跨 session 持久 |\n| 环境变量 `CLAUDE_CODE_DISABLE_WORKFLOWS=1` | 自己 | 启动时读取，设在哪就在哪生效 |\n| managed settings 设 `\"disableWorkflows\": true`，或用 Claude Code admin 设置页开关 | 组织 | claude.ai/admin-settings/claude-code |\n\n> 禁用后：bundled workflow 命令不可用、`workflow` 关键词不再触发运行、`ultracode` 从 `/effort` 菜单移除。", "callout": "成本与可恢复的护栏只在同一 session 内成立。退出 Claude Code 后中途的 workflow 会在下个 session 从头重跑 —— 这意味着你已经花掉的 token 不会因为退出而接着算，重跑会再花一遍。长运行别中途退 Claude Code。"}, {"id": "quickstart-narrative", "heading": "七、快速上手：从零到跑起来并保存", "body_markdown": "### 三种触发方式\n\n1. **直接体验内置 workflow**：`/deep-research <question>`。它 fan-out 多角度 web 搜索、抓取并交叉核验来源、对每条 claim 投票、返回过滤掉未存活 claim 的带引用报告。**需要 WebSearch 工具可用。**\n2. **单次触发（不改 session effort）**：prompt 里任何位置带上 `workflow` 这个词。Claude Code 会高亮它并为该任务现写脚本，而非逐回合处理。**误触按 `alt+w` 取消本次 prompt 的触发。**\n3. **整个 session 自动编排**：`/effort ultracode`。它把 `xhigh` 推理 effort 与自动 workflow 编排结合，让 Claude 为每个实质任务规划 workflow。**仅当前 session 有效**，新 session 重置；回到日常用 `/effort high` 退出。只在支持 `xhigh` effort 的模型上可用。\n\n### 观察运行（`/workflows` 进度视图按键）\n\n| 键 | 作用 |\n| :-- | :-- |\n| `↑` / `↓` | 选择一个 phase 或 agent |\n| `Enter` 或 `→` | 钻入选中 phase，再钻入 agent 读它的 prompt、最近工具调用与结果 |\n| `Esc` | 退回上一层 |\n| `j` / `k` | agent 详情溢出时在其内部滚动 |\n| `p` | 暂停或恢复运行 |\n| `x` | 停止选中 agent；焦点在整个 run 上时停止整个 workflow |\n| `r` | 重启选中的运行中 agent |\n| `s` | 把这次运行的脚本保存为命令 |\n\n### 审批提示（CLI 每次运行）\n\n显示规划好的 phases，选项：Yes, run it；Yes, and don't ask again for <name> in <path>；View raw script；No。`Ctrl+G` 在编辑器里打开脚本；`Tab` 让你在运行前调整 prompt。\n\n### 保存复用\n\n`/workflows` → 选中要保留的 run → 按 `s` → 保存对话框里 `Tab` 在两个位置间切换 → Enter 保存：\n\n| 位置 | 范围 | 命名冲突 |\n| :-- | :-- | :-- |\n| `.claude/workflows/`（项目） | 随仓库分享给所有 clone 的人 | **胜过个人** |\n| `~/.claude/workflows/`（个人 home） | 每个项目可用、仅你可见 | 输给项目 |\n\n保存后在未来 session 里以 `/<name>` 运行，并出现在 `/` 自动补全里。**项目与个人同名时，项目的那个运行。**", "callout": "Desktop app 的体验略有不同：审批是带 Once/Always/Deny 的卡片，进度视图在 Background tasks 侧栏。上面那些 Ctrl+G / Tab 等键来自 CLI 的每次运行提示。"}, {"id": "vs-langgraph", "heading": "八、对照 LangGraph：不是同层竞品，而是同一思想在不同抽象层的两种落地", "callout": "一句话定调：LangGraph 是你（开发者）亲手写代码去构建并部署有状态 Agent 服务的底层编排库 / SDK + 部署平台；Dynamic Workflows 是 Claude Code 里 Claude 替你现写一段可保存 JS 脚本、在你这一次开发 / 研究 session 中编排 subagents 的功能。两者唯一真正重叠的，是「把控制流从随机漫游的逐轮 agent loop 抽离成显式代码」这个思想 —— 它们不是直接竞品。注意：Anthropic 官方任何材料都从未提及 LangGraph，本节所有横向对比均为第三方 / 社区视角的归纳。", "body_markdown": "### 先把层次掰开：它们根本不在一个层级\n\n把 LangGraph 和 Dynamic Workflows 当成「两个争夺同一块地盘的框架」是最常见的误解。诚实的对比方式是**按抽象层逐项拆解**，而不是头对头打擂台。\n\n**LangGraph 是什么（库 / SDK + 部署平台）**\n\n> LangGraph is a low-level orchestration framework and runtime for building, managing, and deploying long-running, stateful agents.\n\n> LangGraph is very low-level, and focused entirely on agent orchestration.\n\n- 由 LangChain Inc. 出品，**开源、MIT 协议**，提供 Python 与 JS/TS（LangGraph.js）两套；可独立使用，不必绑定 LangChain。\n- 核心模型是 `StateGraph`：你（开发者）亲手写 nodes（干活的 LLM / 工具步骤）和 edges（控制流转移），定义一个 State schema（TypedDict / dataclass / Pydantic），`compile()` 后即可运行。\n- 官方明确：`LangGraph does not abstract prompts or architecture` —— 它不替你藏 prompt、也不强加一套认知架构，把控制权完全交给开发者。\n- 采用方（README 列出 Klarna、Replit、Elastic；overview 页另列 Klarna、Uber、J.P. Morgan）。这两份名单要分开引用；BlackRock / Cisco / LinkedIn 只出现在二手博客，不能当官方事实。\n\n更强的「生产级」保证（task queue、横向扩展、托管 checkpointer、后台 run + 轮询、跨 session 续跑）来自 **LangGraph Platform / Server**，而非裸开源库本身 —— 这一点必须分清，否则会把平台才有的能力错记到库头上。\n\n**Dynamic Workflows 是什么（Claude Code 内的 session 级功能）**\n\n> A dynamic workflow is a JavaScript script that orchestrates subagents at scale. Claude writes the script for the task you describe, and a runtime executes it in the background while your session stays responsive.\n\n- 它**活在 Claude Code 里**（CLI / Desktop / IDE / `claude -p` / Agent SDK），research preview，需 Claude Code v2.1.154+。\n- **代码由 Claude 写**，你只描述任务，可审阅 / 编辑（View raw script、Ctrl+G 打开编辑器、Tab 调 prompt），但不亲手编排。\n- 编排在「与对话隔离的 isolated runtime」中后台执行，中间结果落在 script variables，不进 Claude 上下文。\n\n### 真正的共同点（合法的交集）\n\n二者都在做同一件事：**把控制流从自由发挥、逐轮决策的 agent loop 里抽出来，固化成显式代码**——\n\n- LangGraph：你手写的 graph / state machine；\n- Dynamic Workflows：Claude 现写的 JS 脚本。\n\n这样做都买到了同一批好处：编排可被读、可重跑、可 fan-out 到多个 worker、可对结果交叉验证、进度可在中断后续上，而**不必让模型每次都临场即兴整个计划**。\n\n### 关键分歧（逐轴）\n\n| 维度 | LangGraph | Dynamic Workflows |\n| --- | --- | --- |\n| 谁写编排代码 | 你（开发者）手写 nodes/edges | Claude 现写，你审阅/编辑 |\n| 语言 | Python 与 JS/TS（手写） | JavaScript（自动生成） |\n| 运行环境 | 你的进程 / FastAPI / Docker / LangGraph Platform | Claude Code session 内的 isolated runtime |\n| 状态持久化 | durable checkpointer（Postgres / DynamoDB+S3 / Redis），每个 super-step 落盘 | 内存中的 script variables |\n| 续跑范围 | 跨 session / 跨崩溃 / 跨天 | 仅同一 session；退出即从头重跑 |\n| human-in-the-loop | 一等公民：运行中 `interrupt()` 暂停，可等数小时/数天再 resume | 无运行中输入；要 sign-off 就把每个 stage 拆成独立 workflow |\n| 并发/规模 | 横向扩展，受你自己的基础设施约束 | ≤16 并发、单 run 上限 1000 个 agent |\n\n### 关于 LangGraph 的「确定性」：和 Workflows 是同一个 nuance\n\nLangGraph 的确定性同样是**控制流确定、输出不确定**，而且确定性是**开发者的责任、不是自动属性**。官方明确要求：\n\n> 你的 workflow 必须 deterministic and idempotent，把任何 non-deterministic 操作或带 side effect 的操作包进 tasks。\n\n> 虽然 different runs of a workflow can produce different results，但 resuming a specific run should always follow the same sequence of recorded steps.\n\n原因是 resume 并非从中断那一行精确继续，而是 LangGraph「找到一个合适的起点」后**重放**到中断处 —— 没包好的 side effect 会被重复执行（2026 年有 Medium 文章专门警告这种「隐藏的 replay 成本」）。所以 LangGraph 让 graph 拓扑与 state transition 可重放、可审计，但**不会让 LLM node 的文本输出 bit-for-bit 可复现**。这与 Dynamic Workflows 完全同构。\n\n### 第三方的实用总结\n\n第三方（lowcode.agency，更新于 2026-05-13，**早于** Dynamic Workflows 发布，因此严格说是对比 Claude Code 整体而非 Workflows）给了一个好记的定位：\n\n> Claude Code helps you build faster. LangGraph is one of the frameworks you might be building on. —— 「Claude Code builds it; LangGraph runs it.」\n\n再加一个有公司商业利益、需当作「利益相关方批评」看待的对照点（Diagrid，2026-02）：它主张「checkpoints are not durable execution」，因为开源 checkpointer 本身不防重复执行、不做分布式锁，需要调用方自己检测失败并重新触发。这是合理但带立场的批评，托管版 LangGraph Platform 会替你接管其中一部分。"}, {"id": "archival-determinism", "heading": "九、归档、复用与确定性总结：可复用的「确定性流程」是不是 Workflow 最大的意义？", "callout": "结论先行：你的理解核心机制是对的——一个调好的 workflow 能 press s 存进仓库、日后以 /<name> 一键重跑，把编排固化下来，让流程可重复而非每轮临场即兴。但有两处必须校准：(1)「确定性」只对控制流成立，不对 agent 输出成立；(2)「可复用确定性流程」是三大支柱之一、与「scale + 上下文卸载」「可复用质量模式带来的可信结果」并列，而非凌驾其上的「最大意义」——官方文档其实是以 scale 开篇的。", "body_markdown": "### 归档与复用：官方机制（你的理解正确的部分）\n\n「调好 → 归档进仓库 → 日后重跑」这条生命周期，官方逐字支持：\n\n- 在 `/workflows` 进度视图里按 `s`：\n\n> s | Save the run's script as a command\n\n- 两个保存位置，弹窗里用 Tab 切换：\n\n> .claude/workflows/ in your project: shared with everyone who clones the repo\n\n> ~/.claude/workflows/ in your home directory: available in every project, visible only to you\n\n- 保存后：\n\n> The workflow runs as /<name> in future sessions from either location.\n\n- 命名冲突时的优先级（注意这与 skills/commands 的通用规则**相反**）：\n\n> If a project workflow and a personal workflow share a name, the project one runs.\n\n这正是「巡检 / service-inspection 存进 `.claude/workflows/`、随仓库分发给全队、每条分支重跑」的标准用法。一个补充澄清：**保存为 /command 的复用是跨 session 的**，任何未来 session 都能干净重跑；只有「正在运行中的 run」才受 session 约束——`If you exit Claude Code while a workflow is running, the next session starts the workflow fresh.`\n\n### 为什么这是「可重复的流程」而非随机漫游\n\n载入证据是「When to use a workflow」对照表里那一行——**谁来决定下一步跑什么**：\n\n| What's repeatable | Who decides what runs next |\n| --- | --- |\n| Subagents → The worker definition | Claude, turn by turn |\n| Skills → The instructions | Claude, following the prompt |\n| **Workflows → The orchestration itself** | **The script** |\n\n配合那句关键描述：\n\n> A workflow script holds the loop, the branching, and the intermediate results itself, so Claude's context holds only the final answer.\n\n因为中间结果活在「与对话隔离环境」中的 script variables、而非 Claude 的上下文窗口，**计划无法被模型在运行中悄悄重新协商**。脚本（而非模型不断演化的上下文）驱动下一步——这正是你说的「防止自由 agent 跑离散（drift）」，并且准确。可复用的，是**编排本身**：顺序、fan-out、分支、gating 被钉死并每次一致地重跑。\n\n### 确定性的 nuance：确定的是控制流，不是输出\n\n这是必须显式说清的一点。官方文档**全文没有出现 deterministic / determinism 这两个词**——你的「高确定性」是文档间接支持的*正确推断*，但要精确表述：\n\n- **确定的**：控制流——哪些 agent 跑、什么顺序、怎么 fan-out、怎么 gating，都写死在 JS 脚本里，每次一致地重放。\n- **不确定的**：输出——每一步 `agent()` 仍是 LLM subagent，文本不是 bit-for-bit 可复现的。\n\n**对抗式质量模式的存在本身就证明了输出被当作不可信、不确定**——`/deep-research` 要 `votes on each claim` 并过滤掉 `claims that didn't survive cross-checking`，workflows 能让 `independent agents adversarially review each other's findings`。如果输出是确定的，这些交叉验证根本没必要。所以：**一次巡检重跑执行的是同一套流程，但可能给出有差异的发现**。把它叫「high-determinism」对*流程*公允，对*答案*则会误导。\n\n### 确定性不是「存下来就免费得到」\n\n保存编排只固化了控制流，**不会单凭归档就把输出方差收住**。要让巡检重跑之间结果可比、有界，还得把*每一步*设计成低方差：\n\n- structured / schema-constrained output（固定报告 schema）；\n- 显式 pass/fail 判据（每条发现明确通过或不通过）；\n- 加一个 verification / adversarial-reviewer agent 复核每条发现——也就是文档说的那套 `repeatable quality pattern`，照抄 `/deep-research` 的 vote-and-filter。\n\n方差由你怎么设计步骤来收，不是靠保存编排自动得到。\n\n### 不要把调度 jitter 算到 workflow 头上\n\nWorkflows 文档**完全没提 jitter / cron / 定时重跑**。保存的 workflow 是以 slash command 形式被重新调用；要定时跑，得在它**之上叠一个调度器**。任何「deterministic jitter」属于那个调度层，不属于 workflow runtime——两层要分开，别把输出抖动归给 workflow 本身。\n\n### 那么，它是「最大的意义」吗？—— 三大支柱并列\n\n官方并没有把「确定性 + 复用」立为**最大**意义，而是把它和两个对等支柱并排，且文档**以 scale 开篇**：\n\n1. **Scale + 上下文卸载**（文档首要、开篇即讲）：`Reach for a workflow when a task needs more agents than one conversation can coordinate`；`Dozens to hundreds of agents per run`（≤16 并发、上限 1000）；中间结果进 script variables，上下文只留最终答案。\n2. **可信结果 / 可复用质量模式**（独立、对等）：`Moving the plan into code also lets a workflow apply a repeatable quality pattern, not just run more agents`——对抗式互评、多角度起草权衡、vote-and-filter，`so you get a more trustworthy result than a single pass`。\n3. **可读、可复用、可归档的编排**（你关心的这条）：`The orchestration itself` 是可复用产物，存为 /command 随仓库分发。\n\n所以巡检场景是教科书级契合（文档原话就拿 `a review you run on every branch` 当复用例子），但它是**三足之一**，不是独尊。"}], "comparison_table": {"columns": ["维度", "Subagents", "Skills", "Agent Teams", "Dynamic Workflows"], "rows": [["本质", "Claude spawn 的一个 worker", "Claude 遵循的一组 instructions", "多个协调的完整 Claude session（lead + teammates）", "Claude 现写、runtime 执行的 JS 脚本，编排大量 subagents"], ["谁决定下一步（谁持有计划）", "Claude，逐回合", "Claude，遵循 prompt", "lead（一个 Claude session），逐回合", "脚本（代码），非 Claude 逐回合判断"], ["中间结果存哪", "Claude 上下文窗口（summary 落回主对话）", "Claude 上下文窗口（inline）", "共享 task list + 每个 teammate 各自上下文 + mailbox", "脚本变量（隔离 runtime，只回最终答案）"], ["可复用的是什么", "worker 定义", "instructions（SKILL.md 正文）", "无可保存编排产物（每次重新描述）", "编排本身（存成 /command 逐字重跑）"], ["规模", "每回合几个委派；不可嵌套", "同 subagents", "推荐 3-5 个 teammate", "几十到几百（16 并发、1000 总量/次）"], ["交互性（可否中途 steer）", "有限（前台提示透传；后台自动拒绝）", "有限（同 subagents）", "可 —— 直接给 lead 或任一 teammate 发消息、打断、改方向", "否 —— 无中途用户输入，仅 agent 权限提示能暂停"], ["可中断恢复", "重启回合", "重启回合", "in-process teammate 无 session 恢复", "同 session 内可恢复（已完成的走缓存）；退出则重跑"], ["状态/可用性", "GA（已正式发布）", "GA", "实验性，默认关闭（CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1），v2.1.32+", "研究预览，v2.1.154+，付费计划"]]}, "quickstart_steps": [{"step": "确认前提与开启", "detail": "Claude Code 升到 v2.1.154+，付费计划。Pro 用户在 /config 的 Dynamic workflows 行打开。其它计划默认可用。", "command": "/config"}, {"step": "先用内置 workflow 体验一次", "detail": "运行内置的 /deep-research（需 WebSearch 工具可用）。它会多角度 fan-out 搜索、交叉核验、对 claim 投票，返回带引用且已过滤未存活 claim 的报告。", "command": "/deep-research What changed in the Node.js permission model between v20 and v22?"}, {"step": "触发一次性 workflow（不改 session effort）", "detail": "在 prompt 里任意位置带上 workflow 这个词，Claude 会高亮并现写脚本。误触就按 alt+w 取消本次触发。", "command": "Run a workflow to audit every API endpoint under src/routes/ for missing auth checks"}, {"step": "（可选）整个 session 自动编排", "detail": "开启 ultracode = xhigh 推理 effort + 自动 workflow 编排，每个实质任务都规划 workflow。仅当前 session 有效，回日常用 /effort high 退出。", "command": "/effort ultracode"}, {"step": "在审批提示里确认", "detail": "查看规划好的 phases。可选 Yes, run it；想看脚本按 Ctrl+G 用编辑器打开（或选 View raw script）；想调整 prompt 按 Tab。", "command": "（在审批界面操作：Ctrl+G 看脚本 / Tab 改 prompt / 选 Yes, run it）"}, {"step": "观察运行进度", "detail": "列出运行中与已完成的 workflow，方向键选中后 Enter 进入进度视图，看每个 phase 的 agent 数、token、耗时。", "command": "/workflows"}, {"step": "运行中控制", "detail": "在进度视图里：p 暂停/恢复，x 停止选中 agent（焦点在 run 上则停整个 workflow），r 重启卡住的 agent。停止不丢失已完成工作。", "command": "（进度视图按键：p 暂停/恢复 · x 停止 · r 重启）"}, {"step": "长运行前减少中途打断", "detail": "subagent 总在 acceptEdits 模式跑、file edits 自动批准；但不在 allowlist 的 shell/web/MCP 工具仍会中途提示。把 agent 需要的命令提前加进 allowlist。", "command": "/permissions"}, {"step": "保存好用的运行以便复用", "detail": "在 /workflows 选中那次 run 按 s，Tab 在项目（.claude/workflows/，随仓库共享）与个人（~/.claude/workflows/，仅你可见）间切换，Enter 保存。之后以 /<name> 运行；同名时项目优先。", "command": "（/workflows → 选中 run → 按 s → Tab 选位置 → Enter）"}], "decision_guide": ["按官方那一个问题选 —— 谁来协调工作：你想留在每个对话里实时改方向 → Agent Teams；想让脚本持有计划、无人值守规模化跑、且要可复用/交叉验证的质量 → Dynamic Workflows；Claude 在当前回合委派一个旁支任务、给你一份 summary → Subagents；把若干独立任务派出去稍后回来看、还自动 worktree 隔离 → agent view（第四个、独立的选项）。", "选 Dynamic Workflows：任务大到无法逐回合协调（全库 bug 扫荡、500 文件迁移、需交叉核验的研究、从多角度起草并评判一个难方案），或你想把编排存成 /command 在每条分支重跑，且接受最终一份报告、不需要中途 steer，并且想保持上下文干净。", "选 Agent Teams：你要边跑边 steer —— 会 check-in、改方向、实时综合发现。适合需要 agent 互相讨论/挑战的协作或对抗式工作：一个 PR 上 security/perf/test-coverage 三个 reviewer、竞争假设式 debug、跨层特性（前端/后端/测试各 owner）。保持 3-5 人、手动按文件分区避免互相覆盖，最好从边界清晰的研究/审查任务起步。", "选 Subagents：旁支任务会用一堆你不会再看的日志/搜索结果/文件内容淹没主对话、你只要 summary。Token 成本最低、GA、单 session 内、可用 per-subagent worktree 隔离。它们不互相通信也不能嵌套 —— 要嵌套就升级到 team（协作）或 workflow（规模）。", "成本/可用性闸门：team 运行和 workflow 运行都会成倍放大 token 用量并计入计划/限流（plan-mode 的 agent team 被官方引述约 7x）。两者都是 pre-GA、需开启。要 GA、低成本、单 session 的选项就用 Subagents。", "它们可组合：把一个 Dynamic Workflow 当作 team lead 的一个有界无人值守子任务（如一次交叉核验过的审计），再召集 Agent Team 交互式地基于其报告行动；或把一个大工程需要人工签字的每个阶段各做成一个 workflow。"], "faq": [{"q": "会和 Agent Teams 抢资源或冲突吗？", "a": "不会，它们互补而非竞争。冲突的前提是两者在同一个目标上分高下；但它们优化的是相反目标：Agent Teams 优化人在环、可实时 steer（lead 逐回合持有计划、你能直接给任一 teammate 发消息改方向），Dynamic Workflows 优化代码在环、无人值守规模化、可复用、上下文干净（脚本持有计划、无中途用户输入、跑完给你最终报告）。官方总览页把二者并列为四选项，只用一个问题区分：谁来协调工作。它们底层 substrate 相同（都是 Claude agent），所以看着像；差异全在谁编排、你能否介入。甚至可以组合：workflow 本质就是被编排的一组 subagents，team lead 完全可以把一个 workflow 当作它的一个子任务来跑。"}, {"q": "很贵吗？", "a": "会比同一任务在对话里直跑明显更贵。一次 workflow spawn 很多 agent，单次运行可能用掉 meaningfully more tokens，并且计入你计划的用量和限流。每个 agent 默认用你 session 的模型，除非脚本把某阶段路由到别的模型。ultracode 是额外放大器 —— 它让一个请求变成连续几个 workflow，整个 session 都更贵。省钱招：大运行前 /model 确认、让不需要最强模型的阶段用更小模型（Sonnet 够多数编码、简单子任务可 model: haiku）。好消息是可随时从 /workflows 停止而不丢失已完成的工作。"}, {"q": "怎么关掉？", "a": "三种自助方式任选其一：在 /config 切换 Dynamic workflows 行（跨 session 持久）；在 ~/.claude/settings.json 设 disableWorkflows: true（持久）；或设环境变量 CLAUDE_CODE_DISABLE_WORKFLOWS=1（启动时读取）。组织级：在 managed settings 设 disableWorkflows: true，或用 Claude Code admin 设置页（claude.ai/admin-settings/claude-code）的开关。关闭后：bundled workflow 命令不可用、workflow 关键词不再触发、ultracode 从 /effort 菜单消失。"}, {"q": "和 /deep-research 什么关系？", "a": "/deep-research 就是 Claude Code 内置（bundled）的一个 dynamic workflow，是这个特性的现成样板。它对一个问题从多角度 fan-out web 搜索、抓取并交叉核验来源、对每条 claim 投票，返回一份带引用、且已把没通过交叉核验的 claim 过滤掉的报告。它需要 WebSearch 工具可用。换句话说：workflow 是机制，/deep-research 是这个机制打包好的一个实例 —— 你也可以用 workflow 关键词或 ultracode 触发任意任务的 workflow，并把好用的运行存成自己的 /command。"}, {"q": "无中途用户输入是不是就完全没法控制了？", "a": "不是。无中途输入限的是注入新的自然语言指令或做阶段签字。控制手段仍在：你随时能从 /workflows 暂停（p）、恢复（p）、停止 agent 或整个 workflow（x）、重启卡住的 agent（r）；agent 的权限提示（不在 allowlist 的 shell/web/MCP 工具）也能暂停运行。需要人工关卡时，官方建议把每个阶段拆成独立 workflow 逐个签字。所以它对 steer 是 fire-and-forget，对控制（杀/恢复）并不是。"}, {"q": "停下来还能接着跑吗？退出 Claude Code 呢？", "a": "同一个 Claude Code session 内可以 resume：runtime 跟踪每个 agent 的结果，已完成的 agent 返回缓存结果，其余的实时重跑。但这只在同一 session 内成立 —— 如果你在 workflow 运行时退出了 Claude Code，下一个 session 会把这个 workflow 从头重跑（fresh）。所以长运行期间不要中途退出 Claude Code，否则已经花掉的 token 不会接着算，重跑会再花一遍。"}, {"q": "LangGraph 和 Dynamic Workflows 是竞品吗？该二选一吗？", "a": "不是竞品、不必二选一。它们在不同抽象层：LangGraph 是你亲手写代码、用来构建并部署有状态 agent 服务的底层编排库/SDK + 部署平台（开源 MIT，跨 session 持久化）；Dynamic Workflows 是 Claude Code 里 Claude 替你现写一段可保存 JS 脚本、在本次开发/研究 session 编排 subagents 的功能。它们只在「把控制流抽成显式代码以求确定可重跑」这一思想上重叠。第三方一句话：Claude Code builds it; LangGraph runs it。注意 Anthropic 官方从未做过任何 LangGraph 对比，这些都是第三方视角。"}, {"q": "那 Dynamic Workflows 是不是 Claude Code 版的 LangGraph？", "a": "机制上神似、定位上不同。两者都把 loop/branch/fan-out 写进显式代码、都靠 checkpoint/缓存支持中断续跑、都用控制流确定性换可审计可重放。但 LangGraph 的 graph 由你手写、跑在你自己的基础设施上、状态用 durable checkpointer 跨 session/崩溃/天持久化、还有一等公民的运行中 human-in-the-loop interrupt；Dynamic Workflows 的脚本由 Claude 现写、跑在 Claude Code 的 isolated runtime 里、中间结果是内存 script variables、退出 session 即从头重跑、且无运行中用户输入。在 HN 上 Anthropic 工程师 bcherny 也把它和 agent teams 区分为「多 1–2 个数量级的 agent」与「phased、semi-structured 的做法」。"}, {"q": "如果我要把巡检/审查做成定时跑的稳定流程，该用谁？", "a": "看你要的是「服务」还是「dev-loop 一次性任务」。若要一个长期在线、对很多用户/请求负责、需跨天续跑和运行中人工介入的生产服务，那是 LangGraph(+Platform) 的活。若只是「每条分支跑一次同样的巡检并出报告」，就用 Dynamic Workflows：把调好的 run press s 存到 .claude/workflows/，随仓库分发，日后以 /<name> 重跑。要「定时」触发，需在其之上叠一个调度器去调用这个 /command —— jitter/cron 属于调度层，不属于 workflow runtime 本身。"}, {"q": "既然控制流是确定的，巡检每次重跑结果会一模一样吗？", "a": "不会。确定的是控制流（哪些 agent 跑、顺序、fan-out、gating 都写死在脚本里），不确定的是输出——每步仍是 LLM subagent，文本不可 bit-for-bit 复现。重跑执行的是同一套流程，但发现可能有差异。要让结果可比有界，得把步骤设计成低方差：structured/schema 输出、显式 pass/fail 判据、加一个 verification/adversarial-reviewer agent 复核，照抄 /deep-research 的 vote-and-filter。确定性不会单凭「存下来」自动获得。"}, {"q": "那「高确定性可复用流程」到底是不是 Workflow 最大的意义？", "a": "它是三大对等支柱之一，不是独尊。官方文档以 scale 开篇（一个对话协调不过来时才上 workflow，单 run 几十到几百个 agent），并把「可复用质量模式带来更可信结果」（对抗互评、多角度权衡、vote-and-filter）和「可读可归档可重跑的编排」并列为同等重要的收益。可复用确定性流程真实且高价值（巡检就是教科书契合），但称它「最大」并无文档支持。"}], "sources": ["https://code.claude.com/docs/en/workflows", "https://code.claude.com/docs/en/agents", "https://code.claude.com/docs/en/agent-teams", "https://code.claude.com/docs/en/sub-agents", "https://code.claude.com/docs/en/skills", "https://code.claude.com/docs/en/costs", "https://docs.langchain.com/oss/python/langgraph/overview", "https://docs.langchain.com/oss/python/langgraph/graph-api", "https://docs.langchain.com/oss/python/langgraph/persistence", "https://docs.langchain.com/oss/python/langgraph/durable-execution", "https://docs.langchain.com/langgraph-platform/index", "https://github.com/langchain-ai/langgraph", "https://www.langchain.com/langgraph", "https://www.langchain.com/blog/why-langgraph-platform", "https://aws.amazon.com/blogs/database/build-durable-ai-agents-with-langgraph-and-amazon-dynamodb/", "https://medium.com/@egrois/langgraph-controlled-workflows-not-autonomous-agents-37332efa753f", "https://www.diagrid.io/blog/checkpoints-are-not-durable-execution-why-langgraph-crewai-google-adk-and-others-fall-short-for-production-agent-workflows", "https://www.lowcode.agency/blog/claude-code-vs-langgraph", "https://news.ycombinator.com/item?id=48311705"], "lg_comparison": {"title": "LangGraph vs Claude Code Dynamic Workflows（逐层对照，非官方对比，均为第三方 / 社区视角归纳）", "columns": ["对照维度", "LangGraph", "Dynamic Workflows"], "rows": [["抽象层 / 定位", "通用底层 agent 编排库 / SDK + 可选部署平台（LangGraph Platform）", "Claude Code 内的 session 级功能（research preview，v2.1.154+）"], ["谁写编排代码", "你（开发者）亲手写 graph / nodes / edges", "Claude 现写 JS 脚本，你只描述任务、可审阅/编辑"], ["语言", "Python 与 JS/TS（手写）", "JavaScript（自动生成）"], ["运行环境", "你的进程 / FastAPI / Docker / LangGraph Platform（托管或自托管）", "Claude Code session/host 内的 isolated runtime（非你的服务基础设施）"], ["状态与持久化", "durable checkpointer（Postgres / DynamoDB+S3 / Redis），每个 super-step 落盘成 thread", "内存中的 script variables；resume 时已完成 agent 走缓存"], ["确定性（控制流 vs 输出）", "控制流确定可重放；LLM 输出不确定；idempotency 是开发者责任（须把 side effect/随机包进 tasks）", "控制流由脚本固化、确定可重跑；LLM 输出不确定（靠对抗式 vote-and-filter 收方差）"], ["human-in-the-loop", "一等公民：运行中 interrupt() 暂停，可等数小时/数天后 resume", "无运行中用户输入；要 sign-off 就把每个 stage 拆成独立 workflow"], ["触发方式", "从 app 用 API/SDK 调用已部署的 graph", "prompt 里带 workflow 这个词 / /effort ultracode / 已保存或内置的 /<name> 命令"], ["复用与归档", "部署的 graph/service 及其 node 定义被调用方复用", "press s 存到 .claude/workflows/（项目，随仓库分发）或 ~/.claude/workflows/（个人），以 /<name> 复用"], ["典型适用场景", "构建并上线供终端用户/系统长期调用的有状态 agent 产品/服务", "开发/研究 session 内一次性大规模编排（fan-out、对比、重跑失败 agent、出一份报告）"], ["是否长期运行的服务", "是：长生命周期生产服务，跨 session/崩溃/天续跑（强保证来自 Platform/Server）", "否：每任务一次性 dev-loop 编排；退出 Claude Code 即从头重跑，仅可升级为可复用 /command"], ["许可 / 可用性", "开源，MIT", "research preview，付费计划，需 Claude Code v2.1.154+"]]}, "verdict_summary": "不是「最大」，而是三大对等支柱之一。你的核心机制理解正确：一个调好的 workflow 能 press s 存进 .claude/workflows/ 随仓库分发、日后以 /<name> 跨 session 一键重跑，脚本（而非 Claude 逐轮判断）持有 loop/branch/fan-out，中间结果落在隔离的 script variables 而非上下文，因而流程可重复、可审计、不会像自由 agent 那样跑离散——巡检场景更是文档原话「a review you run on every branch」的教科书契合。但要校准两点：其一，「高确定性」只对控制流成立、不对 agent 输出成立（每步仍是 LLM 调用，靠 structured 输出 + 对抗式 verification 收方差，而非靠保存编排自动获得）；其二，官方文档其实以 scale 开篇，并把「可复用质量模式带来的可信结果」与「scale + 上下文卸载」与「可复用确定性编排」并列为三足。所以结论是：可复用的确定性流程是 Workflow 极重要的意义之一，真实且高价值，但它与另外两根支柱平起平坐，称其为「最大意义」并无官方依据。", "usage": {"agents": 18}}</script>
+
+<div class="shell">
+  <!-- HERO -->
+  <header class="hero" id="top">
+    <div class="eyebrow">Claude Code · Research Preview · Deep Dive</div>
+    <div class="hero-grid">
+      <div>
+        <h1 id="hero-title"></h1>
+        <p class="sub" id="hero-sub"></p>
+        <div class="meta-row" id="hero-meta"></div>
+      </div>
+      <div class="hero-vis" aria-hidden="true">
+        <svg viewBox="0 0 420 360">
+          <g id="lines"></g>
+          <g class="pulse">
+            <circle class="node src" cx="64" cy="180" r="26"></circle>
+            <circle class="ncore" cx="64" cy="180" r="6"></circle>
+          </g>
+          <g id="agents"></g>
+        </svg>
+      </div>
+    </div>
+  </header>
+
+  <!-- TL;DR -->
+  <section class="tldr reveal" id="tldr">
+    <div class="tldr-head">
+      <h2>核心结论</h2><span>TL;DR · 8 条</span>
+    </div>
+    <div id="tldr-list"></div>
+  </section>
+
+  <div class="layout">
+    <nav class="toc" id="toc" aria-label="目录">
+      <div class="toc-label">目录 / Contents</div>
+      <div id="toc-links"></div>
+    </nav>
+    <main id="content"></main>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
+<script>
+(function(){
+  "use strict";
+  var DATA;
+  try{ DATA = JSON.parse(document.getElementById('report-data').textContent); }
+  catch(e){ document.getElementById('content').innerHTML='<p style="color:#f88">数据解析失败：'+e+'</p>'; return; }
+
+  if(window.marked && marked.setOptions){ marked.setOptions({gfm:true,breaks:false,headerIds:false,mangle:false}); }
+  function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+  function md(s){
+    s = String(s).split('\n').map(function(line){
+      var m = line.match(/^(\s*>)([\s\S]*)$/);
+      if(m){ return m[1] + m[2].replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+      return line.replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }).join('\n');
+    if(window.marked){ try{ return marked.parse(s);}catch(e){} }
+    return '<p>'+s.replace(/\n{2,}/g,'</p><p>').replace(/\n/g,'<br>')+'</p>';
+  }
+  function inl(s){
+    s=esc(s);
+    s=s.replace(/`([^`]+)`/g,'<code>$1</code>');
+    s=s.replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>');
+    return s;
+  }
+  function sec(id){ for(var i=0;i<DATA.sections.length;i++){ if(DATA.sections[i].id===id) return DATA.sections[i]; } return null; }
+  var COPY_SVG='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>';
+  var LINK_SVG='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 17 17 7M9 7h8v8"/></svg>';
+  var BULB_SVG='<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" style="stroke:var(--gold)"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-4 10.5c.7.7 1 1.3 1 2.5h6c0-1.2.3-1.8 1-2.5A6 6 0 0 0 12 3Z"/></svg>';
+
+  /* ---- HERO ---- */
+  document.title = (DATA.title||'Dynamic Workflows').replace(/[：:].*$/,'') + ' · 深度指南';
+  var t = esc(DATA.title||'');
+  t = t.replace('把&quot;计划&quot;写进代码','把<span class="hl">计划</span>写进代码').replace('把"计划"写进代码','把<span class="hl">计划</span>写进代码');
+  document.getElementById('hero-title').innerHTML = t;
+  document.getElementById('hero-sub').textContent = DATA.subtitle||'';
+  document.getElementById('hero-meta').innerHTML =
+    '<span class="chip preview"><span class="dot"></span>Research Preview</span>'+
+    '<span class="chip">v2.1.154+</span>'+
+    '<span class="chip">付费计划 · API · Bedrock/Vertex/Foundry</span>'+
+    '<span class="chip made"><span class="dot"></span>本报告由 2 个 Dynamic Workflow（共 18 agent）生成 · 已对抗式交叉核验</span>';
+
+  /* hero fan-out svg */
+  (function(){
+    var ys=[40,98,156,214,272,330], lines='', nodes='';
+    for(var i=0;i<ys.length;i++){
+      var warm = (i===1||i===4);
+      var cls = warm?'w':'f';
+      var cx=356, cy=ys[i];
+      lines += '<path class="flowline '+(warm?'w':'f')+' dash" style="animation-delay:'+(i*0.18)+'s" d="M90 180 C 200 180, 240 '+cy+', '+(cx-26)+' '+cy+'"/>';
+      nodes += '<g class="pulse" style="animation-delay:'+(i*0.3)+'s"><circle class="node agent'+(warm?' warm':'')+'" cx="'+cx+'" cy="'+cy+'" r="16"/><circle class="ncore '+cls+'" cx="'+cx+'" cy="'+cy+'" r="4"/></g>';
+    }
+    document.getElementById('lines').innerHTML = lines;
+    document.getElementById('agents').innerHTML = nodes;
+  })();
+
+  /* ---- TL;DR ---- */
+  (function(){
+    var h='';
+    (DATA.tldr||[]).forEach(function(x,i){
+      h+='<div class="tldr-item"><span class="ti-n">'+(i<9?'0':'')+(i+1)+'</span><p>'+inl(x)+'</p></div>';
+    });
+    document.getElementById('tldr-list').innerHTML=h;
+  })();
+
+  /* ---- build main flow ---- */
+  var content=document.getElementById('content');
+  var toc=[];
+  var TOTAL='11';
+  function addAnchor(id,label,n){ toc.push({id:id,label:label,n:n}); }
+  function shortLabel(h){ var p=h.split('、'); return (p[1]||h).replace(/[：:].*$/,''); }
+
+  function renderCmp(tbl,flowName){
+    if(!tbl||!tbl.columns) return '';
+    var flowIdx=-1, teamIdx=-1;
+    tbl.columns.forEach(function(c,i){
+      if(c===flowName||/Dynamic Workflows/i.test(c)) flowIdx=i;
+      if(/Agent Teams/i.test(c)) teamIdx=i;
+    });
+    function cls(i){ return i===flowIdx?' class="col-flow"':(i===teamIdx?' class="col-team"':''); }
+    var head='<tr>'+tbl.columns.map(function(c,i){return '<th'+cls(i)+'>'+esc(c)+'</th>';}).join('')+'</tr>';
+    var body=tbl.rows.map(function(r){return '<tr>'+r.map(function(cell,i){return '<td'+cls(i)+'>'+inl(cell)+'</td>';}).join('')+'</tr>';}).join('');
+    var cap = tbl.title ? '<div class="cmp-title">'+esc(tbl.title)+'</div>' : '';
+    return cap+'<div class="cmp"><table><thead>'+head+'</thead><tbody>'+body+'</tbody></table></div><div class="cmp-hint">↔ 表格可横向滚动 · 首列固定</div>';
+  }
+
+  function sectionBlock(id,n,opts){
+    var s=sec(id); if(!s) return;
+    opts=opts||{};
+    var el=document.createElement('section');
+    el.className='block reveal'; el.id=id;
+    var inner='<span class="knum">'+n+' / '+TOTAL+'</span><h2>'+esc(s.heading.replace(/^[一二三四五六七八九十]、/,''))+'</h2>';
+    if(opts.verdictBanner){ inner+='<div class="vbanner"><span class="vlab">▶ 直接回答你的问题</span><p>'+inl(opts.verdictBanner)+'</p></div>'; }
+    if(opts.spectrum){ inner+=SPECTRUM; }
+    inner+='<div class="prose">'+md(s.body_markdown)+'</div>';
+    if(opts.lgTable){ inner+='<div style="margin-top:26px">'+renderCmp(DATA.lg_comparison,'Dynamic Workflows')+'</div>'; }
+    if(s.callout){ inner+='<div class="callout"><div>'+BULB_SVG+'</div><div><span class="lab">关键洞察</span>'+inl(s.callout)+'</div></div>'; }
+    el.innerHTML=inner;
+    content.appendChild(el);
+    addAnchor(id,opts.label||shortLabel(s.heading),n);
+  }
+
+  var SPECTRUM=''+
+    '<div class="spectrum">'+
+      '<div class="spectrum-q">谁来协调工作？ · <b>WHO COORDINATES THE WORK?</b></div>'+
+      '<div class="spec-bar"></div>'+
+      '<div class="spec-ticks"><span>← 人在环 / steerable</span><span>code in the loop →</span></div>'+
+      '<div class="poles">'+
+        '<div class="pole team"><span class="glyph">⌥</span><span class="ptag">● Human-in-the-loop</span><h4>Agent Teams</h4><p>lead 逐回合持有计划 · 你可直接给任一 teammate 发消息、打断、改方向 · 推荐 3–5 人 · 一次性协作 episode</p></div>'+
+        '<div class="pole flow"><span class="glyph">⌘</span><span class="ptag">● Code-in-the-loop</span><h4>Dynamic Workflows</h4><p>脚本持有计划 · 无中途用户输入、后台一把梭 · 几十到几百 agent · 编排可存成 <code>/command</code> 复用</p></div>'+
+      '</div>'+
+    '</div>';
+
+  // 01-05
+  sectionBlock('what-is-it','01',{label:'本质'});
+  sectionBlock('how-it-runs','02',{label:'运行机制'});
+  sectionBlock('why-cool','03',{label:'为何强大'});
+  sectionBlock('vs-agent-teams','04',{label:'vs Agent Teams',spectrum:true});
+  sectionBlock('vs-subagents-skills','05',{label:'vs Subagents/Skills'});
+
+  /* ---- 06 comparison (4 primitives) ---- */
+  (function(){
+    if(!DATA.comparison_table) return;
+    var el=document.createElement('section');
+    el.className='block reveal'; el.id='comparison';
+    el.innerHTML='<span class="knum">06 / '+TOTAL+'</span><h2>全景对照：四种编排原语</h2>'+
+      '<p style="color:var(--text-dim);max-width:70ch;margin-bottom:22px;font-size:15px">同一个底层 substrate（worker 都是 Claude session/subagent）让它们看着像，分叉点只在一句话——<strong style="color:#fff">谁持有计划、你能否中途介入</strong>。'+
+      '<span style="color:var(--flow)">青色列</span>= Dynamic Workflows，<span style="color:var(--team)">琥珀列</span>= Agent Teams。</p>'+
+      renderCmp(DATA.comparison_table,'Dynamic Workflows');
+    content.appendChild(el);
+    addAnchor('comparison','全景对照','06');
+  })();
+
+  /* ---- 07 decision guide ---- */
+  (function(){
+    var d=DATA.decision_guide; if(!d||!d.length) return;
+    var cards=d.map(function(x,i){
+      var full = i>=4 ? ' full':'';
+      return '<div class="dcard'+full+'"><span class="dnum">指南 '+(i<9?'0':'')+(i+1)+'</span>'+inl(x)+'</div>';
+    }).join('');
+    var el=document.createElement('section');
+    el.className='block reveal'; el.id='decision';
+    el.innerHTML='<span class="knum">07 / '+TOTAL+'</span><h2>如何选型：一个问题决定一切</h2><div class="dgrid">'+cards+'</div>';
+    content.appendChild(el);
+    addAnchor('decision','如何选型','07');
+  })();
+
+  /* ---- 08 vs LangGraph ---- */
+  sectionBlock('vs-langgraph','08',{label:'vs LangGraph',lgTable:true});
+
+  /* ---- 09 cost/perm ---- */
+  sectionBlock('cost-perm-toggle','09',{label:'成本与权限'});
+
+  /* ---- 10 archival & determinism (capstone) ---- */
+  sectionBlock('archival-determinism','10',{label:'归档与确定性',verdictBanner:(DATA.verdict_summary||'')});
+
+  /* ---- 11 quickstart ---- */
+  (function(){
+    var q=DATA.quickstart_steps; if(!q||!q.length) return;
+    var steps=q.map(function(s,i){
+      var cmd=s.command||'';
+      var isReal = cmd && !/^[（(]/.test(cmd.trim());
+      var cmdHtml='';
+      if(isReal){
+        var prompt = /^\//.test(cmd.trim())?'›':'$';
+        cmdHtml='<div class="cmd"><span class="cprompt">'+prompt+'</span><span class="ctext">'+esc(cmd)+'</span>'+
+          '<button data-cmd="'+esc(cmd).replace(/"/g,'&quot;')+'">'+COPY_SVG+'复制</button></div>';
+      } else if(cmd){
+        cmdHtml='<div class="note">'+esc(cmd)+'</div>';
+      }
+      return '<div class="step"><div class="sn">'+(i<9?'0':'')+(i+1)+'</div><div>'+
+        '<h4>'+esc(s.step)+'</h4><p class="sd">'+inl(s.detail)+'</p>'+cmdHtml+'</div></div>';
+    }).join('');
+    var el=document.createElement('section');
+    el.className='block reveal'; el.id='quickstart';
+    el.innerHTML='<span class="knum">11 / '+TOTAL+'</span><h2>快速上手：从零到跑起来并保存</h2><div class="steps">'+steps+'</div>';
+    content.appendChild(el);
+    addAnchor('quickstart','快速上手','11');
+  })();
+
+  /* ---- FAQ ---- */
+  (function(){
+    var f=DATA.faq; if(!f||!f.length) return;
+    var items=f.map(function(x){
+      return '<details><summary><span class="q">'+esc(x.q)+'</span><span class="pm"></span></summary><div class="ans">'+inl(x.a)+'</div></details>';
+    }).join('');
+    var el=document.createElement('section');
+    el.className='block reveal faq'; el.id='faq';
+    el.innerHTML='<span class="knum">FAQ</span><h2>常见疑问</h2>'+items;
+    content.appendChild(el);
+    addAnchor('faq','常见疑问','—');
+  })();
+
+  /* ---- sources + footer ---- */
+  (function(){
+    var s=DATA.sources||[];
+    var links=s.map(function(u){ return '<a class="src" href="'+esc(u)+'" target="_blank" rel="noopener">'+LINK_SVG+esc(u.replace('https://',''))+'</a>'; }).join('');
+    var el=document.createElement('section');
+    el.className='block reveal'; el.id='sources';
+    el.innerHTML='<span class="knum">来源</span><h2>官方文档与延伸来源</h2><div class="sources">'+links+'</div>'+
+      '<div class="footer"><p class="sig">"A workflow moves the plan into code."</p>'+
+      '<p style="margin-top:14px">本报告由 <strong style="color:var(--text-dim)">2 个 Dynamic Workflow（共 18 agent、约 130 万 token）</strong> 生成：<br>'+
+      '第一个建立全貌（6 路读文档 → 2 路对抗校验 → 1 路汇总），第二个追加 LangGraph 对比与确定性论证（6 路调研 → 2 路对抗校验 → 1 路汇总）。<br>'+
+      '正是它在解释的那套机制，把这份解释它的报告自己造了出来。</p>'+
+      '<p style="margin-top:14px;color:var(--text-faint)">生成于 2026-05-29 · 内容以官方文档为准；LangGraph 横向对比为第三方/社区视角，Anthropic 官方未做此对比 · <code>research preview</code> 行为可能随版本变化</p></div>';
+    content.appendChild(el);
+  })();
+
+  /* ---- TOC ---- */
+  (function(){
+    var h=toc.map(function(t){
+      return '<a href="#'+t.id+'" data-id="'+t.id+'"><span class="tn">'+t.n+'</span><span>'+esc(t.label)+'</span></a>';
+    }).join('');
+    document.getElementById('toc-links').innerHTML=h;
+  })();
+
+  /* ---- interactions ---- */
+  content.addEventListener('click',function(e){
+    var b=e.target.closest('button[data-cmd]'); if(!b) return;
+    var txt=b.getAttribute('data-cmd');
+    navigator.clipboard.writeText(txt).then(function(){
+      var old=b.innerHTML; b.classList.add('done'); b.innerHTML=COPY_SVG+'已复制';
+      setTimeout(function(){ b.classList.remove('done'); b.innerHTML=old; },1500);
+    });
+  });
+  var io=new IntersectionObserver(function(es){
+    es.forEach(function(en){ if(en.isIntersecting){ en.target.classList.add('in'); io.unobserve(en.target); } });
+  },{threshold:.08,rootMargin:'0px 0px -40px 0px'});
+  document.querySelectorAll('.reveal').forEach(function(el){ io.observe(el); });
+  var links=[].slice.call(document.querySelectorAll('#toc-links a'));
+  var spy=new IntersectionObserver(function(es){
+    es.forEach(function(en){
+      if(en.isIntersecting){ links.forEach(function(a){ a.classList.toggle('active', a.getAttribute('data-id')===en.target.id); }); }
+    });
+  },{rootMargin:'-20% 0px -70% 0px'});
+  toc.forEach(function(t){ var n=document.getElementById(t.id); if(n) spy.observe(n); });
+  var pb=document.getElementById('progress');
+  function onScroll(){
+    var h=document.documentElement, sc=h.scrollTop||document.body.scrollTop;
+    var max=h.scrollHeight-h.clientHeight;
+    pb.style.width=(max>0?(sc/max*100):0)+'%';
+  }
+  window.addEventListener('scroll',onScroll,{passive:true}); onScroll();
+})();
+</script>
+</body>
+</html>
